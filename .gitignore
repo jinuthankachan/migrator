@@ -1,0 +1,5 @@
+out/
+tmp/
+agents/
+./migrator
+*.out
