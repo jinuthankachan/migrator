@@ -1,0 +1,4 @@
+directory: migrations
+files:
+  - 001_create_users_table.sql
+  - 002_add_email_index.sql

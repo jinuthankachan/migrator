@@ -24,7 +24,7 @@ Migrator relies on environment variables to connect to your PostgreSQL instance.
 * `DB_NAME` - The name of the database.
 
 ### The Config File (`config.yaml`)
-Migrator uses a YAML configuration file to track where your migration files are stored and the order in which they should be executed. 
+Migrator uses a YAML configuration file to track where your migration files are stored and the order in which they should be executed. See [`config.example.yaml`](config.example.yaml) for a complete example.
 
 **Example `config.yaml`:**
 ```yaml
