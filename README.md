@@ -6,22 +6,12 @@ This can be used seamlessly as a standalone CLI binary or integrated directly in
 - **Transactional Safety:** Each migration file executes within its own database transaction. If a statement fails, the entire migration rolls back safely without leaving partial updates.
 - **Sequential Execution:** Migrations are executed strictly in the order specified in a simple configuration file.
 - **Idempotency:** A `migrations` tracking table ensures that already-executed migrations are skipped.
-- **Easy Scaffolding:** Includes a command to generate new `.sql` migration files and automatically append them to your configuration.
 
 ## Requirements
 - Go 1.25.0 or later
 - PostgreSQL database
 
 ## Installation & Configuration
-
-### Environment Variables
-Migrator relies on environment variables to connect to your PostgreSQL instance. Set these before running any commands:
-
-* `DB_HOST` - The host address of the database (e.g., `localhost`).
-* `DB_PORT` - The port number of the database (e.g., `5432`).
-* `DB_USER` - The username for the database.
-* `DB_PASSWORD` - The password for the database.
-* `DB_NAME` - The name of the database.
 
 ### The Config File (`config.yaml`)
 Migrator uses a YAML configuration file to track where your migration files are stored and the order in which they should be executed. See [`config.example.yaml`](config.example.yaml) for a complete example.
@@ -39,6 +29,15 @@ files:
 
 ## Standalone Binary Usage
 
+### Environment Variables
+Migrator in standalone mode relies on environment variables to connect to your PostgreSQL instance. Set these before running any commands:
+
+* `DB_HOST` - The host address of the database (e.g., `localhost`).
+* `DB_PORT` - The port number of the database (e.g., `5432`).
+* `DB_USER` - The username for the database.
+* `DB_PASSWORD` - The password for the database.
+* `DB_NAME` - The name of the database.
+
 ### 1. Installation
 Install the CLI tool globally via `go install`:
 ```bash
@@ -54,14 +53,18 @@ migrator init
 ### 3. Adding Migrations
 Create a new migration file. This will generate a `.sql` file with the specified name in the configured directory and automatically add the filename to your `config.yaml`.
 ```bash
-migrator add -f 001_create_users_table -c ./config.yaml
+migrator add -f 001_create_users_table.sql -c ./config.yaml
 ```
 *(Note: The `.sql` extension is automatically appended if omitted).*
 
 ### 4. Running Migrations
-Execute all pending migrations sequentially:
+* Execute all pending migrations sequentially:
 ```bash
 migrator up -c ./config.yaml
+```
+* Execute a single file 
+```bash
+migrator up -f ./migrations/001_create_users_table.sql
 ```
 
 ---
@@ -87,7 +90,8 @@ import (
 
 func main() {
 	// Initialize the tracking table (safe to run on every startup)
-	if err := migrator.Init(); err != nil {
+	dbConn, err := db.Connect()
+	if err := migrator.Init(dbConn); err != nil {
 		log.Fatalf("Failed to initialize migrations table: %v", err)
 	}
 
@@ -98,10 +102,4 @@ func main() {
 
 	log.Println("Database is up-to-date!")
 }
-```
-
-### 3. Creating Migrations via Code
-You can dynamically create new migration files using the library:
-```go
-err := migrator.Add("003_update_schema", "path/to/your/config.yaml")
 ```
