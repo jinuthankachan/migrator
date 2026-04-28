@@ -3,7 +3,7 @@ A simple and lightweight tool for PostgreSQL database migration operations writt
 This can be used seamlessly as a standalone CLI binary or integrated directly into your Go projects as a library package.
 
 ## Features
-- **Transactional Safety:** Each migration file executes within its own database transaction. If a statement fails, the entire migration rolls back safely without leaving partial updates.
+- **Transactional Safety:** When running migrations via `migrator up`, all pending migrations execute within a single database transaction. If any statement fails, the entire batch rolls back atomically. Single-file execution (`migrator up -f`) also runs within its own transaction.
 - **Sequential Execution:** Migrations are executed strictly in the order specified in a simple configuration file.
 - **Idempotency:** A `migrations` tracking table ensures that already-executed migrations are skipped.
 
@@ -58,11 +58,11 @@ migrator add -f 001_create_users_table.sql -c ./config.yaml
 *(Note: The `.sql` extension is automatically appended if omitted).*
 
 ### 4. Running Migrations
-* Execute all pending migrations sequentially:
+* Execute all pending migrations sequentially (atomic batch):
 ```bash
 migrator up -c ./config.yaml
 ```
-* Execute a single file 
+* Execute a single file:
 ```bash
 migrator up -f ./migrations/001_create_users_table.sql
 ```
@@ -79,24 +79,41 @@ Add the package to your project:
 go get github.com/jinuthankachan/migrator
 ```
 
-### 2. Implementation Example
+### 2. Library API Reference
+
+| Function | Description |
+|----------|-------------|
+| `migrator.Init(db *sql.DB) error` | Creates the `migrations` tracking table if it doesn't exist. Safe to call on every startup. |
+| `migrator.Up(db *sql.DB, configPath string) error` | Runs all pending migrations from the config in a single atomic transaction. |
+| `migrator.UpFile(db *sql.DB, filePath string) error` | Runs a single migration file in its own transaction. |
+| `migrator.Add(configPath, filename string) error` | Creates a new empty `.sql` file and appends it to `config.yaml`. |
+
+### 3. Implementation Example
 ```go
 package main
 
 import (
+	"database/sql"
 	"log"
+
 	"github.com/jinuthankachan/migrator"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+	db, err := sql.Open("postgres", "host=localhost user=dbuser password=dbpass dbname=mydb sslmode=disable")
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
 	// Initialize the tracking table (safe to run on every startup)
-	dbConn, err := db.Connect()
-	if err := migrator.Init(dbConn); err != nil {
+	if err := migrator.Init(db); err != nil {
 		log.Fatalf("Failed to initialize migrations table: %v", err)
 	}
 
-	// Run all pending migrations
-	if err := migrator.Up("path/to/your/config.yaml"); err != nil {
+	// Run all pending migrations atomically
+	if err := migrator.Up(db, "path/to/your/config.yaml"); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}
 
